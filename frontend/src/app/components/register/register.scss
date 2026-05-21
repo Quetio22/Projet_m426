@@ -1,0 +1,54 @@
+.register-page {
+  min-height: calc(100vh - var(--nav-height));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #12031f;
+  color: white;
+}
+
+.login-box {
+  width: 340px;
+  padding: 28px;
+  border: 1px solid #4b3a5c;
+}
+
+.login-box h1 {
+  text-align: center;
+  margin: 0 0 24px;
+  font-size: 28px;
+}
+
+.login-box label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 16px;
+  border: 1px solid #6b5a7a;
+  background: transparent;
+  color: white;
+}
+
+.login-box button {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  background: #6b5cff;
+  color: white;
+  cursor: pointer;
+}
+
+.login-box p {
+  text-align: center;
+  margin: 18px 0 0;
+  font-size: 14px;
+}
+
+.login-box a {
+  color: white;
+}
