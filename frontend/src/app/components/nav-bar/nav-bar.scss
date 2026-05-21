@@ -59,6 +59,11 @@
   border-color: var(--color-border-strong);
 }
 
+.button--home {
+  background: transparent;
+  border-color: transparent;
+}
+
 .button--register {
   background: linear-gradient(90deg, var(--color-accent), var(--color-accent-strong));
   box-shadow: 0 12px 30px rgba(107, 92, 255, 0.2);
@@ -70,6 +75,10 @@
 }
 
 .button--login:hover {
+  background: var(--color-accent-soft);
+}
+
+.button--home:hover {
   background: var(--color-accent-soft);
 }
 
