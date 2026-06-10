@@ -1,10 +1,34 @@
 import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../service/auth';
 
 @Component({
   selector: 'app-login',
-  imports: [RouterLink],
+  imports: [FormsModule, RouterLink],
   templateUrl: './login.html',
-  styleUrl: './login.scss',
+  styleUrl: './login.scss'
 })
-export class Login {}
+export class Login {
+  email = '';
+  password = '';
+  errorMessage = '';
+
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
+
+  onSubmit(): void {
+    this.errorMessage = '';
+
+    this.authService.login(this.email, this.password).subscribe({
+      next: () => {
+        this.router.navigate(['/']);
+      },
+      error: () => {
+        this.errorMessage = 'Adresse mail ou mot de passe incorrect.';
+      }
+    });
+  }
+}
