@@ -3,8 +3,10 @@
     <div class="badge">Nouvelle plateforme de messagerie</div>
 
     @if (isLoggedIn()) {
-      <h1>Bienvenu sur l'application de messagerie <br>
-      la plus simple au monde</h1>
+      <h1>
+        Bienvenue sur l'application de messagerie<br />
+        la plus simple au monde
+      </h1>
     } @else {
       <h1>
         Connectez-vous<br />
@@ -16,20 +18,18 @@
       Messagerie moderne et sécurisée pour communiquer avec vos proches en temps réel,
       où que vous soyez.
     </p>
-    @if (isLoggedIn()) {
 
-    } @else {
+    @if (!isLoggedIn()) {
       <div class="buttons">
-      <button class="button button--primary" type="button" routerLink="/register">
-        S'inscrire gratuitement
-      </button>
-      <button class="button button--secondary" type="button" routerLink="/login">
-        Se connecter &rarr;
-      </button>
-    </div>
+        <button class="button button--primary" type="button" routerLink="/register">
+          S'inscrire gratuitement
+        </button>
+        <button class="button button--secondary" type="button" routerLink="/login">
+          Se connecter &rarr;
+        </button>
+      </div>
+    }
   </div>
 
   <div class="landing__glow" aria-hidden="true"></div>
-  }
 </section>
-
