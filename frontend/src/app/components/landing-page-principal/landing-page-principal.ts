@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../service/auth';
 
 @Component({
   selector: 'app-landing-page-principal',
@@ -10,5 +10,8 @@ import { AuthService } from '../../services/auth.service';
 })
 export class LandingPagePrincipal {
   private readonly authService = inject(AuthService);
-  readonly isLoggedIn = this.authService.isLoggedIn;
+
+  isLoggedIn(): boolean {
+    return this.authService.isLoggedIn();
+  }
 }
