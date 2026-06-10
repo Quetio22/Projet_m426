@@ -22,6 +22,6 @@ describe('App', () => {
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('app-nav-bar')).toBeTruthy();
-    expect(compiled.querySelector('.title')?.textContent).toContain('MessageApp');
+    expect(compiled.querySelector('.title')?.textContent).toContain('MessApp');
   });
 });

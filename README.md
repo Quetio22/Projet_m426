@@ -35,5 +35,4 @@ Nous utilisons une méthode de travail collaborative avec :
 - l’utilisation de branches Git dédiées,
 - des revues de code,
 - et une documentation centralisée.
-
 ---

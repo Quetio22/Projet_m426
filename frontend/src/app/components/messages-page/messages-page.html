@@ -1,0 +1,78 @@
+<section class="messages-page">
+  <aside class="sidebar">
+    <h1>Messages</h1>
+
+    <button class="new-conversation" type="button">+ Nouvelle conversation</button>
+
+    <button class="conversation active" type="button">
+      <span>
+        <strong>Test</strong>
+        <small>Nouvelle conversation</small>
+      </span>
+      <small>A l'instant</small>
+    </button>
+  </aside>
+
+  <main class="chat">
+    <header class="chat-header">
+      <h2>Test</h2>
+    </header>
+
+    <div class="messages-list">
+      @for (message of messages; track message.time + message.text) {
+        <div class="message-row" [class.message-row--mine]="message.isMine">
+          @if (!message.isMine) {
+            <div class="avatar">{{ message.author }}</div>
+          }
+
+          <article class="message" [class.message--mine]="message.isMine">
+            <p>{{ message.text }}</p>
+            <small>{{ message.time }}</small>
+          </article>
+
+          @if (message.isMine) {
+            <div class="avatar avatar--mine">{{ message.author }}</div>
+          }
+        </div>
+      }
+    </div>
+
+    <form class="message-form" (submit)="sendMessage()">
+      <input type="text" name="message" [(ngModel)]="newMessage" placeholder="Votre message..." autocomplete="off">
+      <button type="submit">Envoyer</button>
+    </form>
+  </main>
+
+  <aside class="details">
+    <section>
+      <h2>Participants</h2>
+
+      <div class="participant">
+        <div class="avatar">JD</div>
+        <span>
+          <strong>Jean Dupont</strong>
+          <small>En ligne</small>
+        </span>
+      </div>
+
+      <div class="participant">
+        <div class="avatar">ML</div>
+        <span>
+          <strong>Marie Laurent</strong>
+          <small>Hors ligne</small>
+        </span>
+      </div>
+
+      <button class="add-participant" type="button">
+        + Ajouter un participant
+      </button>
+    </section>
+
+    <section>
+      <h2>Informations</h2>
+
+      <div class="info">Cree le 15 Jan 2025</div>
+      <div class="info">2 participants</div>
+    </section>
+  </aside>
+</section>
