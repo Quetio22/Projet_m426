@@ -16,8 +16,10 @@
       Messagerie moderne et sécurisée pour communiquer avec vos proches en temps réel,
       où que vous soyez.
     </p>
+    @if (isLoggedIn()) {
 
-    <div class="buttons">
+    } @else {
+      <div class="buttons">
       <button class="button button--primary" type="button" routerLink="/register">
         S'inscrire gratuitement
       </button>
@@ -28,4 +30,6 @@
   </div>
 
   <div class="landing__glow" aria-hidden="true"></div>
+  }
 </section>
+
