@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
 import { AuthService } from '../../service/auth';
 
 @Component({
@@ -17,7 +18,14 @@ export class NavBar {
   }
 
   logout(): void {
-    this.authService.logout();
-    this.router.navigate(['/']);
+    this.authService.logout().pipe(
+      finalize(() => {
+        this.router.navigate(['/']);
+      })
+    ).subscribe({
+      error: () => {
+        // The local token is removed by AuthService even if the API is unavailable.
+      }
+    });
   }
 }

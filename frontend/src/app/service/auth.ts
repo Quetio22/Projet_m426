@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { finalize, tap } from 'rxjs';
 
 interface LoginResponse {
   token: string;
@@ -26,8 +26,12 @@ export class AuthService {
     );
   }
 
-  logout(): void {
-    this.storage?.removeItem(this.tokenKey);
+  logout() {
+    return this.http.delete<void>(`${this.apiUrl}/tokens/me`).pipe(
+      finalize(() => {
+        this.storage?.removeItem(this.tokenKey);
+      })
+    );
   }
 
   getToken(): string | null {
