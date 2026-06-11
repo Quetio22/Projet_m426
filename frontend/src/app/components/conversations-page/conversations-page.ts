@@ -23,12 +23,12 @@ type Conversation = {
 };
 
 @Component({
-  selector: 'app-messages-page',
+  selector: 'app-conversations-page',
   imports: [FormsModule],
-  templateUrl: './messages-page.html',
-  styleUrl: './messages-page.scss',
+  templateUrl: './conversations-page.html',
+  styleUrl: './conversations-page.scss',
 })
-export class MessagesPage {
+export class ConversationsPage {
   newMessage = '';
   newConversationName = '';
   newParticipantName = '';

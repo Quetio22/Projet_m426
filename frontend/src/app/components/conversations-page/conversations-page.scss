@@ -1,4 +1,4 @@
-.messages-page {
+.conversations-page {
   display: grid;
   grid-template-columns: 280px minmax(330px, 1fr) 280px;
   min-height: calc(100vh - var(--nav-height));
@@ -241,7 +241,7 @@ small {
 }
 
 @media (max-width: 1000px) {
-  .messages-page {
+  .conversations-page {
     grid-template-columns: 1fr;
   }
 
@@ -251,7 +251,7 @@ small {
 }
 
 @media (max-width: 600px) {
-  .messages-page {
+  .conversations-page {
     padding: 18px;
   }
 
