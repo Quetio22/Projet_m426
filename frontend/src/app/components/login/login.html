@@ -2,7 +2,7 @@
   <div class="login-box">
     <h1>Connexion</h1>
 
-    <form (ngSubmit)="onSubmit()">
+    <form #loginForm="ngForm" (submit)="onSubmit($event, loginForm)" novalidate>
       <label for="email">Adresse Mail</label>
       <input
         type="email"
@@ -10,8 +10,15 @@
         name="email"
         placeholder="Adresse mail"
         [(ngModel)]="email"
+        #emailField="ngModel"
         required
       >
+      @if ((loginForm.submitted || emailField.touched) && emailField.errors?.['required']) {
+        <p class="field-error">L'adresse mail est obligatoire.</p>
+      }
+      @if ((loginForm.submitted || emailField.touched) && emailField.errors?.['email']) {
+        <p class="field-error">L'adresse mail n'est pas valide.</p>
+      }
 
       <label for="password">Mot de passe</label>
       <input
@@ -20,15 +27,21 @@
         name="password"
         placeholder="Mot de passe"
         [(ngModel)]="password"
+        #passwordField="ngModel"
         required
       >
-
-      @if (errorMessage) {
-        <p class="error">{{ errorMessage }}</p>
+      @if ((loginForm.submitted || passwordField.touched) && passwordField.errors?.['required']) {
+        <p class="field-error">Le mot de passe est obligatoire.</p>
       }
 
-      <button type="submit">Se connecter</button>
+      <button type="submit" [disabled]="isSubmitting()">
+        {{ isSubmitting() ? 'Connexion...' : 'Se connecter' }}
+      </button>
     </form>
+
+    @if (errorMessage()) {
+      <p class="form-error" role="alert">{{ errorMessage() }}</p>
+    }
 
     <p>
       Pas encore de compte ?

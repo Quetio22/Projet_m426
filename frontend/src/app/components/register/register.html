@@ -2,20 +2,55 @@
   <div class="login-box">
     <h1>Nouveau compte</h1>
 
-    <form>
+    <form #registerForm="ngForm" (submit)="onSubmit($event, registerForm)" novalidate>
       <label for="email">Adresse Mail</label>
-      <input type="email" id="email" placeholder="Adresse mail">
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="Adresse mail"
+        [(ngModel)]="email"
+        #emailField="ngModel"
+        required
+      >
+      @if (emailField.touched && emailField.errors?.['required']) {
+        <p class="field-error">L'adresse mail est obligatoire.</p>
+      }
+      @if (emailField.touched && emailField.errors?.['email']) {
+        <p class="field-error">L'adresse mail n'est pas valide.</p>
+      }
 
       <label for="password">Nouveau mot de passe</label>
-      <input type="password" id="password" placeholder="Mot de passe">
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="Mot de passe"
+        [(ngModel)]="password"
+        #passwordField="ngModel"
+        required
+      >
+      @if (passwordField.touched && passwordField.errors?.['required']) {
+        <p class="field-error">Le mot de passe est obligatoire.</p>
+      }
 
-      <br>
+      <label for="password-confirmation">Confirmer votre mot de passe</label>
+      <input
+        type="password"
+        id="password-confirmation"
+        name="passwordConfirmation"
+        placeholder="Confirmer le mot de passe"
+        [(ngModel)]="passwordConfirmation"
+        #confirmationField="ngModel"
+        required
+      >
+      @if (confirmationField.touched && confirmationField.errors?.['required']) {
+        <p class="field-error">La confirmation du mot de passe est obligatoire.</p>
+      } @else if (confirmationField.touched && password !== passwordConfirmation) {
+        <p class="field-error">Les mots de passe ne correspondent pas.</p>
+      }
 
-      <label for="password">Confirmer votre mot de passe</label>
-      <input type="password" id="password" placeholder="Mot de passe">
-
-      <button type="submit">Se connecter</button>
+      <button type="submit">Créer mon compte</button>
     </form>
-
   </div>
 </section>
