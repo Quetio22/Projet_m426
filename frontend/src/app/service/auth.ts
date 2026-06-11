@@ -21,20 +21,33 @@ export class AuthService {
       password: password
     }).pipe(
       tap(response => {
-        localStorage.setItem('auth_token', response.token);
+        this.storage?.setItem(this.tokenKey, response.token);
       })
     );
   }
 
   logout(): void {
-    localStorage.removeItem(this.tokenKey);
+    this.storage?.removeItem(this.tokenKey);
   }
 
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    return this.storage?.getItem(this.tokenKey) ?? null;
   }
 
   isLoggedIn(): boolean {
     return this.getToken() !== null;
+  }
+
+  private get storage(): Storage | null {
+    if (
+      typeof localStorage === 'undefined' ||
+      typeof localStorage.getItem !== 'function' ||
+      typeof localStorage.setItem !== 'function' ||
+      typeof localStorage.removeItem !== 'function'
+    ) {
+      return null;
+    }
+
+    return localStorage;
   }
 }

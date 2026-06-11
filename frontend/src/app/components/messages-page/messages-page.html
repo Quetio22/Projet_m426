@@ -2,23 +2,54 @@
   <aside class="sidebar">
     <h1>Messages</h1>
 
-    <button class="new-conversation" type="button">+ Nouvelle conversation</button>
-
-    <button class="conversation active" type="button">
-      <span>
-        <strong>Test</strong>
-        <small>Nouvelle conversation</small>
-      </span>
-      <small>A l'instant</small>
+    <button class="new-conversation" type="button" (click)="showNewConversationForm()">
+      + Nouvelle conversation
     </button>
+
+    @if (isCreatingConversation) {
+      <form class="inline-form" (submit)="createConversation()">
+        <input
+          type="text"
+          name="conversationName"
+          [(ngModel)]="newConversationName"
+          placeholder="Nom de la conversation"
+          autocomplete="off"
+        >
+        <div class="inline-actions">
+          <button type="submit">Créer</button>
+          <button type="button" class="button-secondary" (click)="cancelNewConversation()">Annuler</button>
+        </div>
+      </form>
+    }
+
+    <div class="conversation-list">
+      @for (conversation of conversations; track conversation.id) {
+        <button
+          class="conversation"
+          [class.active]="conversation.id === activeConversationId"
+          type="button"
+          (click)="selectConversation(conversation.id)"
+        >
+          <span>
+            <strong>{{ conversation.title }}</strong>
+            <small>{{ getConversationPreview(conversation) }}</small>
+          </span>
+          <small>{{ getConversationTime(conversation) }}</small>
+        </button>
+      }
+    </div>
   </aside>
 
   <main class="chat">
     <header class="chat-header">
-      <h2>Test</h2>
+      <h2>{{ activeConversation.title }}</h2>
     </header>
 
     <div class="messages-list">
+      @if (messages.length === 0) {
+        <p class="empty-state">Aucun message dans cette conversation.</p>
+      }
+
       @for (message of messages; track message.time + message.text) {
         <div class="message-row" [class.message-row--mine]="message.isMine">
           @if (!message.isMine) {
@@ -47,23 +78,33 @@
     <section>
       <h2>Participants</h2>
 
-      <div class="participant">
-        <div class="avatar">JD</div>
-        <span>
-          <strong>Jean Dupont</strong>
-          <small>En ligne</small>
-        </span>
-      </div>
+      @for (participant of participants; track participant.name) {
+        <div class="participant">
+          <div class="avatar">{{ participant.initials }}</div>
+          <span>
+            <strong>{{ participant.name }}</strong>
+            <small>{{ participant.status }}</small>
+          </span>
+        </div>
+      }
 
-      <div class="participant">
-        <div class="avatar">ML</div>
-        <span>
-          <strong>Marie Laurent</strong>
-          <small>Hors ligne</small>
-        </span>
-      </div>
+      @if (isAddingParticipant) {
+        <form class="inline-form" (submit)="addParticipant()">
+          <input
+            type="text"
+            name="participantName"
+            [(ngModel)]="newParticipantName"
+            placeholder="Nom du participant"
+            autocomplete="off"
+          >
+          <div class="inline-actions">
+            <button type="submit">Ajouter</button>
+            <button type="button" class="button-secondary" (click)="cancelAddParticipant()">Annuler</button>
+          </div>
+        </form>
+      }
 
-      <button class="add-participant" type="button">
+      <button class="add-participant" type="button" (click)="showAddParticipantForm()">
         + Ajouter un participant
       </button>
     </section>
@@ -71,8 +112,8 @@
     <section>
       <h2>Informations</h2>
 
-      <div class="info">Cree le 15 Jan 2025</div>
-      <div class="info">2 participants</div>
+      <div class="info">Créé le {{ formatDate(activeConversation.createdAt) }}</div>
+      <div class="info">{{ participants.length }} participant{{ participants.length > 1 ? 's' : '' }}</div>
     </section>
   </aside>
 </section>
