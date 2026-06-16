@@ -1,22 +1,77 @@
 <section class="conversations-page">
   <aside class="sidebar">
-    <h1>Messages</h1>
+    <h1>Conversations</h1>
 
     <button class="new-conversation" type="button" (click)="showNewConversationForm()">
       + Nouvelle conversation
     </button>
 
     @if (isCreatingConversation) {
-      <form class="inline-form" (submit)="createConversation()">
-        <input
-          type="text"
-          name="conversationName"
-          [(ngModel)]="newConversationName"
-          placeholder="Nom de la conversation"
-          autocomplete="off"
+      <form #conversationForm="ngForm" class="inline-form" (submit)="createConversation($event, conversationForm)" novalidate>
+        <label for="conversation-type">Type de conversation</label>
+        <select
+          id="conversation-type"
+          name="conversationType"
+          [(ngModel)]="conversationType"
+          (ngModelChange)="setConversationType($event)"
         >
+          <option value="private">Conversation privée</option>
+          <option value="group">Conversation de groupe</option>
+        </select>
+
+        @if (conversationType === 'private') {
+          <label for="private-participant">Participant</label>
+          <input
+            type="text"
+            id="private-participant"
+            name="privateParticipant"
+            [(ngModel)]="privateParticipantUsername"
+            #privateParticipant="ngModel"
+            placeholder="email ou +417..."
+            autocomplete="off"
+            required
+          >
+          @if ((conversationForm.submitted || privateParticipant.touched) && privateParticipant.errors?.['required']) {
+            <p class="field-error">Le participant est obligatoire.</p>
+          }
+        } @else {
+          <label for="group-participant">Participants</label>
+          <div class="participant-picker">
+            <input
+              type="text"
+              id="group-participant"
+              name="groupParticipant"
+              [(ngModel)]="groupParticipantUsername"
+              placeholder="email ou +417..."
+              autocomplete="off"
+            >
+            <button type="button" (click)="addConversationParticipant()">Ajouter</button>
+          </div>
+
+          @if (conversationParticipants.length > 0) {
+            <div class="selected-participants">
+              @for (participant of conversationParticipants; track participant) {
+                <button
+                  type="button"
+                  class="participant-chip"
+                  (click)="removeConversationParticipant(participant)"
+                  [attr.aria-label]="'Retirer ' + participant"
+                >
+                  {{ participant }} ×
+                </button>
+              }
+            </div>
+          }
+        }
+
+        @if (creationError()) {
+          <p class="form-error" role="alert">{{ creationError() }}</p>
+        }
+
         <div class="inline-actions">
-          <button type="submit">Créer</button>
+          <button type="submit" [disabled]="isSubmittingConversation()">
+            {{ isSubmittingConversation() ? 'Création...' : 'Créer' }}
+          </button>
           <button type="button" class="button-secondary" (click)="cancelNewConversation()">Annuler</button>
         </div>
       </form>
@@ -78,7 +133,7 @@
     <section>
       <h2>Participants</h2>
 
-      @for (participant of participants; track participant.name) {
+      @for (participant of participants; track $index) {
         <div class="participant">
           <div class="avatar">{{ participant.initials }}</div>
           <span>
@@ -97,6 +152,9 @@
             placeholder="Nom du participant"
             autocomplete="off"
           >
+          @if (participantError()) {
+            <p class="form-error" role="alert">{{ participantError() }}</p>
+          }
           <div class="inline-actions">
             <button type="submit">Ajouter</button>
             <button type="button" class="button-secondary" (click)="cancelAddParticipant()">Annuler</button>
@@ -104,9 +162,11 @@
         </form>
       }
 
-      <button class="add-participant" type="button" (click)="showAddParticipantForm()">
-        + Ajouter un participant
-      </button>
+      @if (activeConversation.group) {
+        <button class="add-participant" type="button" (click)="showAddParticipantForm()">
+          + Ajouter un participant
+        </button>
+      }
     </section>
 
     <section>

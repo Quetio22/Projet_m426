@@ -1,5 +1,13 @@
-import { Component } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, signal } from '@angular/core';
+import { FormsModule, NgForm } from '@angular/forms';
+import { finalize } from 'rxjs';
+import {
+  ConversationResponseDto,
+  ConversationService,
+  CreateConversationRequest
+} from '../../service/conversation';
+import { AuthService } from '../../service/auth';
 
 type Message = {
   author: string;
@@ -17,6 +25,7 @@ type Participant = {
 type Conversation = {
   id: number;
   title: string;
+  group: boolean;
   createdAt: Date;
   participants: Participant[];
   messages: Message[];
@@ -30,16 +39,28 @@ type Conversation = {
 })
 export class ConversationsPage {
   newMessage = '';
-  newConversationName = '';
   newParticipantName = '';
+  conversationType: 'private' | 'group' = 'private';
+  privateParticipantUsername = '';
+  groupParticipantUsername = '';
+  conversationParticipants: string[] = [];
   activeConversationId = 1;
   isCreatingConversation = false;
   isAddingParticipant = false;
+  readonly creationError = signal('');
+  readonly participantError = signal('');
+  readonly isSubmittingConversation = signal(false);
+
+  constructor(
+    private conversationService: ConversationService,
+    private authService: AuthService
+  ) {}
 
   conversations: Conversation[] = [
     {
       id: 1,
       title: 'Test',
+      group: false,
       createdAt: new Date(2025, 0, 15),
       participants: [
         {
@@ -101,39 +122,107 @@ export class ConversationsPage {
   showNewConversationForm(): void {
     this.isCreatingConversation = true;
     this.isAddingParticipant = false;
+    this.creationError.set('');
   }
 
-  createConversation(): void {
-    const title = this.newConversationName.trim();
+  setConversationType(type: 'private' | 'group'): void {
+    this.conversationType = type;
+    this.creationError.set('');
+  }
 
-    if (!title) {
+  addConversationParticipant(): void {
+    const username = this.groupParticipantUsername.trim().toLowerCase();
+    const currentUsername = this.authService.getUsername()?.toLowerCase();
+
+    if (!this.isValidUsername(username)) {
+      this.creationError.set('Saisis une adresse email ou un numéro au format E.164.');
+      return;
+    }
+    if (username === currentUsername) {
+      this.creationError.set('Tu es déjà ajouté automatiquement à la conversation.');
+      return;
+    }
+    if (this.conversationParticipants.includes(username)) {
+      this.creationError.set('Ce participant est déjà dans la liste.');
       return;
     }
 
-    const now = new Date();
-    const conversation: Conversation = {
-      id: now.getTime(),
-      title,
-      createdAt: now,
-      participants: [
-        {
-          initials: 'Moi',
-          name: 'Moi',
-          status: 'En ligne',
-        },
-      ],
-      messages: [],
-    };
+    this.conversationParticipants = [...this.conversationParticipants, username];
+    this.groupParticipantUsername = '';
+    this.creationError.set('');
+  }
 
-    this.conversations = [conversation, ...this.conversations];
-    this.activeConversationId = conversation.id;
-    this.newConversationName = '';
-    this.isCreatingConversation = false;
+  removeConversationParticipant(username: string): void {
+    this.conversationParticipants = this.conversationParticipants.filter(
+      (participant) => participant !== username
+    );
+  }
+
+  createConversation(event: SubmitEvent, form: NgForm): void {
+    event.preventDefault();
+    this.creationError.set('');
+
+    const privateUsername = this.privateParticipantUsername.trim().toLowerCase();
+    if (this.conversationType === 'private' && (!privateUsername || form.invalid)) {
+      form.control.markAllAsTouched();
+      return;
+    }
+    if (this.conversationType === 'private' && !this.isValidUsername(privateUsername)) {
+      this.creationError.set('Saisis une adresse email ou un numéro au format E.164.');
+      return;
+    }
+
+    if (this.conversationType === 'group' && this.conversationParticipants.length < 2) {
+      this.creationError.set('Ajoute au moins deux participants pour créer un groupe.');
+      return;
+    }
+
+    const requestedParticipants = this.conversationType === 'private'
+      ? [privateUsername]
+      : this.conversationParticipants;
+    const currentUsername = this.authService.getUsername()?.toLowerCase();
+
+    if (
+      currentUsername &&
+      requestedParticipants.includes(currentUsername)
+    ) {
+      this.creationError.set('Tu es déjà ajouté automatiquement à la conversation.');
+      return;
+    }
+
+    const request: CreateConversationRequest = this.conversationType === 'private'
+      ? { username: privateUsername }
+      : {
+          participants: requestedParticipants.map((username) => ({ username }))
+        };
+
+    this.isSubmittingConversation.set(true);
+    this.conversationService.createConversation(request).pipe(
+      finalize(() => {
+        this.isSubmittingConversation.set(false);
+      })
+    ).subscribe({
+      next: (response) => {
+        const conversation = this.toConversation(response, requestedParticipants);
+        if (conversation.participants.length < 2) {
+          this.creationError.set('Tu ne peux pas créer une conversation avec toi-même.');
+          return;
+        }
+        this.conversations = [
+          conversation,
+          ...this.conversations.filter((item) => item.id !== conversation.id)
+        ];
+        this.activeConversationId = conversation.id;
+        this.resetConversationForm();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.creationError.set(this.getCreationError(error));
+      }
+    });
   }
 
   cancelNewConversation(): void {
-    this.newConversationName = '';
-    this.isCreatingConversation = false;
+    this.resetConversationForm();
   }
 
   sendMessage(): void {
@@ -153,14 +242,30 @@ export class ConversationsPage {
   }
 
   showAddParticipantForm(): void {
+    if (!this.activeConversation.group) {
+      return;
+    }
+
     this.isAddingParticipant = true;
     this.isCreatingConversation = false;
+    this.participantError.set('');
   }
 
   addParticipant(): void {
-    const name = this.newParticipantName.trim();
+    const name = this.newParticipantName.trim().toLowerCase();
+    const currentUsername = this.authService.getUsername()?.toLowerCase();
 
-    if (!name) {
+    if (!this.isValidUsername(name)) {
+      this.participantError.set('Saisis une adresse email ou un numéro au format E.164.');
+      return;
+    }
+    if (
+      name === currentUsername ||
+      this.activeConversation.participants.some(
+        (participant) => participant.name.toLowerCase() === name
+      )
+    ) {
+      this.participantError.set('Ce participant est déjà dans la conversation.');
       return;
     }
 
@@ -171,11 +276,13 @@ export class ConversationsPage {
     });
     this.newParticipantName = '';
     this.isAddingParticipant = false;
+    this.participantError.set('');
   }
 
   cancelAddParticipant(): void {
     this.newParticipantName = '';
     this.isAddingParticipant = false;
+    this.participantError.set('');
   }
 
   getConversationPreview(conversation: Conversation): string {
@@ -215,5 +322,60 @@ export class ConversationsPage {
       hour: '2-digit',
       minute: '2-digit',
     });
+  }
+
+  private toConversation(
+    response: ConversationResponseDto,
+    requestedParticipants: string[]
+  ): Conversation {
+    const participants = Array.from(
+      new Map(
+        (response._embedded?.participants ?? []).map((participant) => [
+          participant.userId || participant.username,
+          participant
+        ])
+      ).values()
+    );
+
+    return {
+      id: response.id,
+      title: response.group
+        ? `Groupe : ${requestedParticipants.join(', ')}`
+        : requestedParticipants[0],
+      group: response.group,
+      createdAt: new Date(),
+      participants: participants.map((participant) => ({
+        initials: this.createInitials(participant.username),
+        name: participant.username,
+        status: participant.status
+      })),
+      messages: []
+    };
+  }
+
+  private getCreationError(error: HttpErrorResponse): string {
+    if (error.status === 400) {
+      return 'Vérifie les participants saisis.';
+    }
+    if (error.status === 401 || error.status === 403) {
+      return 'Tu dois être connecté pour créer une conversation.';
+    }
+    return 'Impossible de créer la conversation pour le moment.';
+  }
+
+  private resetConversationForm(): void {
+    this.conversationType = 'private';
+    this.privateParticipantUsername = '';
+    this.groupParticipantUsername = '';
+    this.conversationParticipants = [];
+    this.creationError.set('');
+    this.isCreatingConversation = false;
+  }
+
+  private isValidUsername(username: string): boolean {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const e164Pattern = /^\+[1-9]\d{7,14}$/;
+
+    return emailPattern.test(username) || e164Pattern.test(username);
   }
 }

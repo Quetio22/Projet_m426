@@ -12,6 +12,7 @@ interface LoginResponse {
 export class AuthService {
   private readonly apiUrl = '/api/v1';
   private readonly tokenKey = 'auth_token';
+  private readonly usernameKey = 'auth_username';
 
   constructor(private http: HttpClient) {}
 
@@ -22,6 +23,7 @@ export class AuthService {
     }).pipe(
       tap(response => {
         this.storage?.setItem(this.tokenKey, response.token);
+        this.storage?.setItem(this.usernameKey, username.toLowerCase());
       })
     );
   }
@@ -30,6 +32,7 @@ export class AuthService {
     return this.http.delete<void>(`${this.apiUrl}/tokens/me`).pipe(
       finalize(() => {
         this.storage?.removeItem(this.tokenKey);
+        this.storage?.removeItem(this.usernameKey);
       })
     );
   }
@@ -40,6 +43,10 @@ export class AuthService {
 
   isLoggedIn(): boolean {
     return this.getToken() !== null;
+  }
+
+  getUsername(): string | null {
+    return this.storage?.getItem(this.usernameKey) ?? null;
   }
 
   private get storage(): Storage | null {
