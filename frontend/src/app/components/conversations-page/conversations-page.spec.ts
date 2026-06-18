@@ -11,9 +11,39 @@ describe('ConversationsPage', () => {
   let component: ConversationsPage;
   let fixture: ComponentFixture<ConversationsPage>;
   const createConversation = vi.fn();
+  const getConversations = vi.fn();
 
   beforeEach(async () => {
     createConversation.mockReset();
+    getConversations.mockReset();
+    getConversations.mockReturnValue(of({
+      _embedded: {
+        conversations: [
+          {
+            id: 4004,
+            isGroup: false,
+            _embedded: {
+              participants: [
+                {
+                  userId: 11,
+                  username: 'sheana@example.com',
+                  role: 'MEMBER',
+                  status: 'ACTIVE'
+                },
+                {
+                  userId: 12,
+                  username: 'siona@example.com',
+                  role: 'MEMBER',
+                  status: 'ACTIVE'
+                }
+              ]
+            }
+          }
+        ]
+      },
+      page: { size: 20, totalElements: 1, totalPages: 1, number: 0 },
+      _links: {}
+    }));
     createConversation.mockReturnValue(of({
       id: 4005,
       group: false,
@@ -40,7 +70,7 @@ describe('ConversationsPage', () => {
       providers: [
         {
           provide: ConversationService,
-          useValue: { createConversation }
+          useValue: { createConversation, getConversations }
         },
         {
           provide: AuthService,
@@ -56,6 +86,13 @@ describe('ConversationsPage', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should load conversations on initialization', () => {
+    expect(getConversations).toHaveBeenCalledWith(0, 20);
+    expect(component.conversations[0].id).toBe(4004);
+    expect(component.conversations[0].title).toBe('siona@example.com');
+    expect(component.activeConversationId).toBe(4004);
   });
 
   it('should create and select a private conversation returned by the API', () => {
@@ -75,7 +112,7 @@ describe('ConversationsPage', () => {
     });
     expect(component.conversations[0].id).toBe(4005);
     expect(component.activeConversationId).toBe(4005);
-    expect(component.activeConversation.title).toBe('trevize@example.com');
+    expect(component.activeConversation?.title).toBe('trevize@example.com');
     expect(component.isCreatingConversation).toBe(false);
   });
 
@@ -140,7 +177,7 @@ describe('ConversationsPage', () => {
   });
 
   it('should add a participant to the active conversation', () => {
-    component.activeConversation.group = true;
+    component.activeConversation!.group = true;
     component.newParticipantName = 'alice@example.com';
     component.addParticipant();
 
@@ -153,8 +190,8 @@ describe('ConversationsPage', () => {
   });
 
   it('should reject a participant already in the active conversation', () => {
-    component.activeConversation.group = true;
-    component.activeConversation.participants.push({
+    component.activeConversation!.group = true;
+    component.activeConversation!.participants.push({
       initials: 'A',
       name: 'alice@example.com',
       status: 'ACTIVE'

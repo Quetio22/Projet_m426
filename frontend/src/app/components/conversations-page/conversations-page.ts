@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { finalize } from 'rxjs';
 import {
@@ -37,7 +37,7 @@ type Conversation = {
   templateUrl: './conversations-page.html',
   styleUrl: './conversations-page.scss',
 })
-export class ConversationsPage {
+export class ConversationsPage implements OnInit {
   newMessage = '';
   newParticipantName = '';
   conversationType: 'private' | 'group' = 'private';
@@ -50,54 +50,21 @@ export class ConversationsPage {
   readonly creationError = signal('');
   readonly participantError = signal('');
   readonly isSubmittingConversation = signal(false);
+  readonly isLoadingConversations = signal(false);
+  readonly conversationsError = signal('');
 
   constructor(
     private conversationService: ConversationService,
     private authService: AuthService
   ) {}
 
-  conversations: Conversation[] = [
-    {
-      id: 1,
-      title: 'Test',
-      group: false,
-      createdAt: new Date(2025, 0, 15),
-      participants: [
-        {
-          initials: 'JD',
-          name: 'Jean Dupont',
-          status: 'En ligne',
-        },
-        {
-          initials: 'ML',
-          name: 'Marie Laurent',
-          status: 'Hors ligne',
-        },
-      ],
-      messages: [
-        {
-          author: 'ML',
-          text: 'Salut ! Comment ça va ?',
-          time: '10:30',
-          isMine: false,
-        },
-        {
-          author: 'Moi',
-          text: 'Très bien merci ! Et toi ?',
-          time: '10:32',
-          isMine: true,
-        },
-        {
-          author: 'ML',
-          text: 'Super ! Tu es disponible pour une réunion cet après-midi ?',
-          time: '10:35',
-          isMine: false,
-        },
-      ],
-    },
-  ];
+  conversations: Conversation[] = [];
 
-  get activeConversation(): Conversation {
+  ngOnInit(): void {
+    this.loadConversations();
+  }
+
+  get activeConversation(): Conversation | undefined {
     return (
       this.conversations.find((conversation) => conversation.id === this.activeConversationId) ??
       this.conversations[0]
@@ -105,11 +72,32 @@ export class ConversationsPage {
   }
 
   get messages(): Message[] {
-    return this.activeConversation.messages;
+    return this.activeConversation?.messages ?? [];
   }
 
   get participants(): Participant[] {
-    return this.activeConversation.participants;
+    return this.activeConversation?.participants ?? [];
+  }
+
+  loadConversations(page = 0, size = 20): void {
+    this.isLoadingConversations.set(true);
+    this.conversationsError.set('');
+
+    this.conversationService.getConversations(page, size).pipe(
+      finalize(() => this.isLoadingConversations.set(false))
+    ).subscribe({
+      next: (response) => {
+        this.conversations = (response._embedded?.conversations ?? []).map(
+          (conversation) => this.toConversation(conversation)
+        );
+        this.activeConversationId = this.conversations[0]?.id ?? 0;
+      },
+      error: (error: HttpErrorResponse) => {
+        this.conversations = [];
+        this.activeConversationId = 0;
+        this.conversationsError.set(this.getLoadingError(error));
+      }
+    });
   }
 
   selectConversation(conversationId: number): void {
@@ -227,12 +215,13 @@ export class ConversationsPage {
 
   sendMessage(): void {
     const text = this.newMessage.trim();
+    const activeConversation = this.activeConversation;
 
-    if (!text) {
+    if (!text || !activeConversation) {
       return;
     }
 
-    this.activeConversation.messages.push({
+    activeConversation.messages.push({
       author: 'Moi',
       text,
       time: this.formatTime(new Date()),
@@ -242,7 +231,7 @@ export class ConversationsPage {
   }
 
   showAddParticipantForm(): void {
-    if (!this.activeConversation.group) {
+    if (!this.activeConversation?.group) {
       return;
     }
 
@@ -254,14 +243,15 @@ export class ConversationsPage {
   addParticipant(): void {
     const name = this.newParticipantName.trim().toLowerCase();
     const currentUsername = this.authService.getUsername()?.toLowerCase();
+    const activeConversation = this.activeConversation;
 
-    if (!this.isValidUsername(name)) {
+    if (!activeConversation || !this.isValidUsername(name)) {
       this.participantError.set('Saisis une adresse email ou un numéro au format E.164.');
       return;
     }
     if (
       name === currentUsername ||
-      this.activeConversation.participants.some(
+      activeConversation.participants.some(
         (participant) => participant.name.toLowerCase() === name
       )
     ) {
@@ -269,7 +259,7 @@ export class ConversationsPage {
       return;
     }
 
-    this.activeConversation.participants.push({
+    activeConversation.participants.push({
       initials: this.createInitials(name),
       name,
       status: 'Invité',
@@ -326,7 +316,7 @@ export class ConversationsPage {
 
   private toConversation(
     response: ConversationResponseDto,
-    requestedParticipants: string[]
+    requestedParticipants?: string[]
   ): Conversation {
     const participants = Array.from(
       new Map(
@@ -337,12 +327,19 @@ export class ConversationsPage {
       ).values()
     );
 
+    const isGroup = response.isGroup ?? response.group ?? false;
+    const currentUsername = this.authService.getUsername()?.toLowerCase();
+    const otherParticipants = participants
+      .map((participant) => participant.username)
+      .filter((username) => username.toLowerCase() !== currentUsername);
+    const titleParticipants = requestedParticipants ?? otherParticipants;
+
     return {
       id: response.id,
-      title: response.group
-        ? `Groupe : ${requestedParticipants.join(', ')}`
-        : requestedParticipants[0],
-      group: response.group,
+      title: isGroup
+        ? `Groupe : ${titleParticipants.join(', ')}`
+        : titleParticipants[0] ?? participants[0]?.username ?? `Conversation ${response.id}`,
+      group: isGroup,
       createdAt: new Date(),
       participants: participants.map((participant) => ({
         initials: this.createInitials(participant.username),
@@ -361,6 +358,16 @@ export class ConversationsPage {
       return 'Tu dois être connecté pour créer une conversation.';
     }
     return 'Impossible de créer la conversation pour le moment.';
+  }
+
+  private getLoadingError(error: HttpErrorResponse): string {
+    if (error.status === 401 || error.status === 403) {
+      return 'Tu dois être connecté pour consulter tes conversations.';
+    }
+    if (error.status === 429) {
+      return 'Trop de requêtes. Réessaie dans un instant.';
+    }
+    return 'Impossible de charger les conversations pour le moment.';
   }
 
   private resetConversationForm(): void {

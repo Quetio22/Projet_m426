@@ -78,6 +78,14 @@
     }
 
     <div class="conversation-list">
+      @if (isLoadingConversations()) {
+        <p class="empty-state">Chargement des conversations...</p>
+      } @else if (conversationsError()) {
+        <p class="form-error" role="alert">{{ conversationsError() }}</p>
+      } @else if (conversations.length === 0) {
+        <p class="empty-state">Aucune conversation.</p>
+      }
+
       @for (conversation of conversations; track conversation.id) {
         <button
           class="conversation"
@@ -95,9 +103,10 @@
     </div>
   </aside>
 
+  @if (activeConversation; as conversation) {
   <main class="chat">
     <header class="chat-header">
-      <h2>{{ activeConversation.title }}</h2>
+      <h2>{{ conversation.title }}</h2>
     </header>
 
     <div class="messages-list">
@@ -162,7 +171,7 @@
         </form>
       }
 
-      @if (activeConversation.group) {
+      @if (conversation.group) {
         <button class="add-participant" type="button" (click)="showAddParticipantForm()">
           + Ajouter un participant
         </button>
@@ -172,8 +181,13 @@
     <section>
       <h2>Informations</h2>
 
-      <div class="info">Créé le {{ formatDate(activeConversation.createdAt) }}</div>
+      <div class="info">Créé le {{ formatDate(conversation.createdAt) }}</div>
       <div class="info">{{ participants.length }} participant{{ participants.length > 1 ? 's' : '' }}</div>
     </section>
   </aside>
+  } @else {
+    <main class="chat">
+      <p class="empty-state">Sélectionne ou crée une conversation pour commencer.</p>
+    </main>
+  }
 </section>
