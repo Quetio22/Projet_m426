@@ -5,18 +5,25 @@ import { finalize } from 'rxjs';
 import {
   ConversationResponseDto,
   ConversationService,
-  CreateConversationRequest
+  CreateConversationRequest,
+  MessageParticipantStatusDto,
+  MessageResponseDto
 } from '../../service/conversation';
 import { AuthService } from '../../service/auth';
 
 type Message = {
+  id: number;
   author: string;
+  avatar: string;
   text: string;
   time: string;
   isMine: boolean;
+  participantStatus: MessageParticipantStatusDto[];
+  readStatus: string;
 };
 
 type Participant = {
+  userId?: number;
   initials: string;
   name: string;
   status: string;
@@ -52,6 +59,8 @@ export class ConversationsPage implements OnInit {
   readonly isSubmittingConversation = signal(false);
   readonly isLoadingConversations = signal(false);
   readonly conversationsError = signal('');
+  readonly isLoadingMessages = signal(false);
+  readonly messagesError = signal('');
 
   constructor(
     private conversationService: ConversationService,
@@ -91,6 +100,12 @@ export class ConversationsPage implements OnInit {
           (conversation) => this.toConversation(conversation)
         );
         this.activeConversationId = this.conversations[0]?.id ?? 0;
+        if (this.activeConversationId) {
+          this.loadMessages(this.activeConversationId);
+        }
+        this.conversations
+          .filter((conversation) => conversation.id !== this.activeConversationId)
+          .forEach((conversation) => this.loadMessagePreview(conversation));
       },
       error: (error: HttpErrorResponse) => {
         this.conversations = [];
@@ -105,6 +120,56 @@ export class ConversationsPage implements OnInit {
     this.newMessage = '';
     this.isCreatingConversation = false;
     this.isAddingParticipant = false;
+    this.loadMessages(conversationId);
+  }
+
+  loadMessages(conversationId: number, page = 0, size = 20): void {
+    const conversation = this.conversations.find((item) => item.id === conversationId);
+    if (!conversation) {
+      return;
+    }
+
+    this.isLoadingMessages.set(true);
+    this.messagesError.set('');
+
+    this.conversationService.getMessages(conversationId, page, size).pipe(
+      finalize(() => {
+        if (this.activeConversationId === conversationId) {
+          this.isLoadingMessages.set(false);
+        }
+      })
+    ).subscribe({
+      next: (response) => {
+        if (this.activeConversationId !== conversationId) {
+          return;
+        }
+
+        conversation.messages = (response._embedded?.messages ?? []).map(
+          (message) => this.toMessage(message, conversation)
+        );
+      },
+      error: (error: HttpErrorResponse) => {
+        if (this.activeConversationId !== conversationId) {
+          return;
+        }
+
+        conversation.messages = [];
+        this.messagesError.set(this.getMessagesError(error));
+      }
+    });
+  }
+
+  private loadMessagePreview(conversation: Conversation): void {
+    this.conversationService.getMessages(conversation.id, 0, 20).subscribe({
+      next: (response) => {
+        conversation.messages = (response._embedded?.messages ?? []).map(
+          (message) => this.toMessage(message, conversation)
+        );
+      },
+      error: () => {
+        // A failed preview must not block the conversation list.
+      }
+    });
   }
 
   showNewConversationForm(): void {
@@ -201,6 +266,8 @@ export class ConversationsPage implements OnInit {
           ...this.conversations.filter((item) => item.id !== conversation.id)
         ];
         this.activeConversationId = conversation.id;
+        this.messagesError.set('');
+        this.isLoadingMessages.set(false);
         this.resetConversationForm();
       },
       error: (error: HttpErrorResponse) => {
@@ -222,10 +289,14 @@ export class ConversationsPage implements OnInit {
     }
 
     activeConversation.messages.push({
+      id: Date.now(),
       author: 'Moi',
+      avatar: 'M',
       text,
       time: this.formatTime(new Date()),
       isMine: true,
+      participantStatus: [],
+      readStatus: 'Envoyé',
     });
     this.newMessage = '';
   }
@@ -342,12 +413,55 @@ export class ConversationsPage implements OnInit {
       group: isGroup,
       createdAt: new Date(),
       participants: participants.map((participant) => ({
+        userId: participant.userId,
         initials: this.createInitials(participant.username),
         name: participant.username,
         status: participant.status
       })),
       messages: []
     };
+  }
+
+  private toMessage(message: MessageResponseDto, conversation: Conversation): Message {
+    const sender = conversation.participants.find(
+      (participant) => participant.userId === message.senderId
+    );
+    const currentUsername = this.authService.getUsername()?.toLowerCase();
+    const isMine = sender?.name.toLowerCase() === currentUsername;
+    const participantStatus = message.participantStatus ?? [];
+
+    return {
+      id: message.id,
+      author: isMine ? 'Moi' : sender?.name ?? `Utilisateur ${message.senderId}`,
+      avatar: isMine
+        ? 'M'
+        : sender?.initials ?? this.createInitials(`Utilisateur ${message.senderId}`),
+      text: message.body,
+      time: this.formatTime(new Date(message.sentAt)),
+      isMine,
+      participantStatus,
+      readStatus: isMine
+        ? this.getReadStatus(participantStatus, message.senderId)
+        : ''
+    };
+  }
+
+  private getReadStatus(
+    participantStatus: MessageParticipantStatusDto[],
+    senderId: number
+  ): string {
+    const readCount = participantStatus.filter(
+      (status) =>
+        status.userId !== senderId &&
+        status.readAt !== null &&
+        !status.deleted
+    ).length;
+
+    if (readCount === 0) {
+      return 'Envoyé';
+    }
+
+    return readCount === 1 ? 'Lu' : `Lu par ${readCount}`;
   }
 
   private getCreationError(error: HttpErrorResponse): string {
@@ -368,6 +482,19 @@ export class ConversationsPage implements OnInit {
       return 'Trop de requêtes. Réessaie dans un instant.';
     }
     return 'Impossible de charger les conversations pour le moment.';
+  }
+
+  private getMessagesError(error: HttpErrorResponse): string {
+    if (error.status === 401 || error.status === 403) {
+      return 'Tu n’as pas accès aux messages de cette conversation.';
+    }
+    if (error.status === 404) {
+      return 'Cette conversation n’existe plus.';
+    }
+    if (error.status === 429) {
+      return 'Trop de requêtes. Réessaie dans un instant.';
+    }
+    return 'Impossible de charger les messages pour le moment.';
   }
 
   private resetConversationForm(): void {

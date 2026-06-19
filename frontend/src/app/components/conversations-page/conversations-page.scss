@@ -155,6 +155,29 @@ small {
   text-align: center;
 }
 
+.message-state {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  margin: auto;
+  color: #ffb0b0;
+  text-align: center;
+}
+
+.message-state p {
+  margin: 0;
+}
+
+.message-state button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  background: var(--color-accent-soft);
+  color: #ffffff;
+  cursor: pointer;
+}
+
 .message-row {
   display: flex;
   align-items: flex-start;
@@ -199,6 +222,17 @@ small {
 .message p {
   margin: 0 0 8px;
   line-height: 1.45;
+}
+
+.message-meta {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.message--mine .message-meta small:last-child {
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .message-form {

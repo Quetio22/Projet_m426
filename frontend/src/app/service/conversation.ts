@@ -30,6 +30,33 @@ export type ConversationsPageResponseDto = {
   _links: Record<string, { href: string }>;
 };
 
+export type MessageParticipantStatusDto = {
+  userId: number;
+  readAt: string | null;
+  deleted: boolean;
+};
+
+export type MessageResponseDto = {
+  id: number;
+  senderId: number;
+  body: string;
+  sentAt: string;
+  participantStatus: MessageParticipantStatusDto[];
+};
+
+export type MessagesPageResponseDto = {
+  _embedded?: {
+    messages: MessageResponseDto[];
+  };
+  page: {
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    number: number;
+  };
+  _links: Record<string, { href: string }>;
+};
+
 export type CreateConversationRequest =
   | { username: string }
   | { participants: Array<{ username: string }> };
@@ -56,6 +83,20 @@ export class ConversationService {
 
     return this.http.get<ConversationsPageResponseDto>(
       `${this.apiUrl}/conversations`,
+      {
+        params,
+        headers: { Accept: 'application/hal+json' }
+      }
+    );
+  }
+
+  getMessages(conversationId: number, page = 0, size = 20) {
+    const params = new HttpParams()
+      .set('page', page)
+      .set('size', size);
+
+    return this.http.get<MessagesPageResponseDto>(
+      `${this.apiUrl}/conversation/${conversationId}/messages`,
       {
         params,
         headers: { Accept: 'application/hal+json' }
