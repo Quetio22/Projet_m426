@@ -1,11 +1,11 @@
 import { Component, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../service/auth';
 
 @Component({
   selector: 'app-nav-bar',
-  imports: [RouterLink],
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './nav-bar.html',
   styleUrl: './nav-bar.scss',
 })
@@ -18,14 +18,17 @@ export class NavBar {
   }
 
   logout(): void {
-    this.authService.logout().pipe(
-      finalize(() => {
-        this.router.navigate(['/']);
-      })
-    ).subscribe({
-      error: () => {
-        // The local token is removed by AuthService even if the API is unavailable.
-      }
-    });
+    this.authService
+      .logout()
+      .pipe(
+        finalize(() => {
+          this.router.navigate(['/']);
+        }),
+      )
+      .subscribe({
+        error: () => {
+          // The local token is removed by AuthService even if the API is unavailable.
+        },
+      });
   }
 }

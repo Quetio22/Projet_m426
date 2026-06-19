@@ -10,15 +10,11 @@
           Conversation
         </button>
         <button class="button button--login" type="button" routerLink="/profile">
-          Profil
+          <a routerLink="/profile" routerLinkActive="active"> Profil </a>
         </button>
-        <button class="button button--logout" type="button" (click)="logout()">
-          Déconnexion
-        </button>
+        <button class="button button--logout" type="button" (click)="logout()">Déconnexion</button>
       } @else {
-        <button class="button button--login" type="button" routerLink="/login">
-          Se connecter
-        </button>
+        <button class="button button--login" type="button" routerLink="/login">Se connecter</button>
         <button class="button button--register" type="button" routerLink="/register">
           S'inscrire
         </button>

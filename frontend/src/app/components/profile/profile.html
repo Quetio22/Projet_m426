@@ -1,0 +1,99 @@
+<section class="profile-page">
+  <div class="profile-card">
+    <h1>Mon profil</h1>
+
+    @if (loading) {
+      <p>Chargement du profil...</p>
+    } @else if (errorMessage && !user) {
+      <p class="error-message">
+        {{ errorMessage }}
+      </p>
+    } @else if (user) {
+      <div class="profile-info">
+        <p>
+          <strong>ID :</strong>
+          {{ user.id }}
+        </p>
+      </div>
+
+      <form (ngSubmit)="saveProfile()">
+        <div class="form-group">
+          <label for="username">
+            Nom d’utilisateur
+          </label>
+
+          <input
+            id="username"
+            name="username"
+            type="text"
+            [(ngModel)]="username"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="displayName">
+            Nom affiché
+          </label>
+
+          <input
+            id="displayName"
+            name="displayName"
+            type="text"
+            [(ngModel)]="displayName"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="newPassword">
+            Nouveau mot de passe
+          </label>
+
+          <input
+            id="newPassword"
+            name="newPassword"
+            type="password"
+            [(ngModel)]="newPassword"
+            placeholder="Laisser vide pour ne pas le modifier"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword">
+            Confirmer le nouveau mot de passe
+          </label>
+
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            [(ngModel)]="confirmPassword"
+          />
+        </div>
+
+        @if (successMessage) {
+          <p class="success-message">
+            {{ successMessage }}
+          </p>
+        }
+
+        @if (errorMessage) {
+          <p class="error-message">
+            {{ errorMessage }}
+          </p>
+        }
+
+        <button
+          type="submit"
+          [disabled]="saving"
+        >
+          {{
+            saving
+              ? 'Enregistrement...'
+              : 'Enregistrer les modifications'
+          }}
+        </button>
+      </form>
+    }
+  </div>
+</section>
