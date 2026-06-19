@@ -6,6 +6,7 @@ import {
   ConversationResponseDto,
   ConversationService,
   CreateConversationRequest,
+  MessageParticipantStatusDto,
   MessageResponseDto
 } from '../../service/conversation';
 import { AuthService } from '../../service/auth';
@@ -17,6 +18,8 @@ type Message = {
   text: string;
   time: string;
   isMine: boolean;
+  participantStatus: MessageParticipantStatusDto[];
+  readStatus: string;
 };
 
 type Participant = {
@@ -100,6 +103,9 @@ export class ConversationsPage implements OnInit {
         if (this.activeConversationId) {
           this.loadMessages(this.activeConversationId);
         }
+        this.conversations
+          .filter((conversation) => conversation.id !== this.activeConversationId)
+          .forEach((conversation) => this.loadMessagePreview(conversation));
       },
       error: (error: HttpErrorResponse) => {
         this.conversations = [];
@@ -149,6 +155,19 @@ export class ConversationsPage implements OnInit {
 
         conversation.messages = [];
         this.messagesError.set(this.getMessagesError(error));
+      }
+    });
+  }
+
+  private loadMessagePreview(conversation: Conversation): void {
+    this.conversationService.getMessages(conversation.id, 0, 20).subscribe({
+      next: (response) => {
+        conversation.messages = (response._embedded?.messages ?? []).map(
+          (message) => this.toMessage(message, conversation)
+        );
+      },
+      error: () => {
+        // A failed preview must not block the conversation list.
       }
     });
   }
@@ -276,6 +295,8 @@ export class ConversationsPage implements OnInit {
       text,
       time: this.formatTime(new Date()),
       isMine: true,
+      participantStatus: [],
+      readStatus: 'Envoyé',
     });
     this.newMessage = '';
   }
@@ -407,6 +428,7 @@ export class ConversationsPage implements OnInit {
     );
     const currentUsername = this.authService.getUsername()?.toLowerCase();
     const isMine = sender?.name.toLowerCase() === currentUsername;
+    const participantStatus = message.participantStatus ?? [];
 
     return {
       id: message.id,
@@ -416,8 +438,30 @@ export class ConversationsPage implements OnInit {
         : sender?.initials ?? this.createInitials(`Utilisateur ${message.senderId}`),
       text: message.body,
       time: this.formatTime(new Date(message.sentAt)),
-      isMine
+      isMine,
+      participantStatus,
+      readStatus: isMine
+        ? this.getReadStatus(participantStatus, message.senderId)
+        : ''
     };
+  }
+
+  private getReadStatus(
+    participantStatus: MessageParticipantStatusDto[],
+    senderId: number
+  ): string {
+    const readCount = participantStatus.filter(
+      (status) =>
+        status.userId !== senderId &&
+        status.readAt !== null &&
+        !status.deleted
+    ).length;
+
+    if (readCount === 0) {
+      return 'Envoyé';
+    }
+
+    return readCount === 1 ? 'Lu' : `Lu par ${readCount}`;
   }
 
   private getCreationError(error: HttpErrorResponse): string {

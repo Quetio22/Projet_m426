@@ -224,6 +224,17 @@ small {
   line-height: 1.45;
 }
 
+.message-meta {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.message--mine .message-meta small:last-child {
+  color: #ffffff;
+  font-weight: 600;
+}
+
 .message-form {
   display: grid;
   grid-template-columns: 1fr 115px;

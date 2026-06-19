@@ -75,14 +75,20 @@ describe('ConversationsPage', () => {
             senderId: 11,
             body: 'Mon message',
             sentAt: '2026-06-18T10:30:00',
-            participantStatus: []
+            participantStatus: [
+              { userId: 11, readAt: '2026-06-18T10:30:00', deleted: false },
+              { userId: 12, readAt: null, deleted: false }
+            ]
           },
           {
             id: 101,
             senderId: 12,
             body: 'Sa réponse',
             sentAt: '2026-06-18T10:31:00',
-            participantStatus: []
+            participantStatus: [
+              { userId: 11, readAt: null, deleted: false },
+              { userId: 12, readAt: '2026-06-18T10:31:00', deleted: false }
+            ]
           }
         ]
       },
@@ -129,7 +135,12 @@ describe('ConversationsPage', () => {
         avatar: 'M',
         text: 'Mon message',
         time: '10:30',
-        isMine: true
+        isMine: true,
+        participantStatus: [
+          { userId: 11, readAt: '2026-06-18T10:30:00', deleted: false },
+          { userId: 12, readAt: null, deleted: false }
+        ],
+        readStatus: 'Envoyé'
       },
       {
         id: 101,
@@ -137,9 +148,97 @@ describe('ConversationsPage', () => {
         avatar: 'S',
         text: 'Sa réponse',
         time: '10:31',
-        isMine: false
+        isMine: false,
+        participantStatus: [
+          { userId: 11, readAt: null, deleted: false },
+          { userId: 12, readAt: '2026-06-18T10:31:00', deleted: false }
+        ],
+        readStatus: ''
       }
     ]);
+  });
+
+  it('should display how many recipients have read my message', () => {
+    getMessages.mockReturnValue(of({
+      _embedded: {
+        messages: [
+          {
+            id: 102,
+            senderId: 11,
+            body: 'Message de groupe',
+            sentAt: '2026-06-18T10:32:00',
+            participantStatus: [
+              { userId: 11, readAt: '2026-06-18T10:32:00', deleted: false },
+              { userId: 12, readAt: '2026-06-18T10:33:00', deleted: false },
+              { userId: 13, readAt: '2026-06-18T10:34:00', deleted: false }
+            ]
+          }
+        ]
+      },
+      page: { size: 20, totalElements: 1, totalPages: 1, number: 0 },
+      _links: {}
+    }));
+
+    component.loadMessages(4004);
+
+    expect(component.messages[0].readStatus).toBe('Lu par 2');
+  });
+
+  it('should preload messages for conversation previews', () => {
+    getConversations.mockReturnValue(of({
+      _embedded: {
+        conversations: [
+          {
+            id: 4004,
+            isGroup: false,
+            _embedded: {
+              participants: [
+                {
+                  userId: 11,
+                  username: 'sheana@example.com',
+                  role: 'MEMBER',
+                  status: 'ACTIVE'
+                },
+                {
+                  userId: 12,
+                  username: 'siona@example.com',
+                  role: 'MEMBER',
+                  status: 'ACTIVE'
+                }
+              ]
+            }
+          },
+          {
+            id: 4006,
+            isGroup: false,
+            _embedded: {
+              participants: [
+                {
+                  userId: 11,
+                  username: 'sheana@example.com',
+                  role: 'MEMBER',
+                  status: 'ACTIVE'
+                },
+                {
+                  userId: 16,
+                  username: 'daneel@example.com',
+                  role: 'MEMBER',
+                  status: 'ACTIVE'
+                }
+              ]
+            }
+          }
+        ]
+      },
+      page: { size: 20, totalElements: 2, totalPages: 1, number: 0 },
+      _links: {}
+    }));
+
+    component.loadConversations();
+
+    expect(getMessages).toHaveBeenCalledWith(4004, 0, 20);
+    expect(getMessages).toHaveBeenCalledWith(4006, 0, 20);
+    expect(component.conversations[1].messages.at(-1)?.text).toBe('Sa réponse');
   });
 
   it('should display an empty state when the API returns no messages', () => {
