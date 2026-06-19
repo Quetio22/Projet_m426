@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { NgForm } from '@angular/forms';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { ConversationsPage } from './conversations-page';
@@ -12,10 +13,12 @@ describe('ConversationsPage', () => {
   let fixture: ComponentFixture<ConversationsPage>;
   const createConversation = vi.fn();
   const getConversations = vi.fn();
+  const getMessages = vi.fn();
 
   beforeEach(async () => {
     createConversation.mockReset();
     getConversations.mockReset();
+    getMessages.mockReset();
     getConversations.mockReturnValue(of({
       _embedded: {
         conversations: [
@@ -64,13 +67,35 @@ describe('ConversationsPage', () => {
         ]
       }
     }));
+    getMessages.mockReturnValue(of({
+      _embedded: {
+        messages: [
+          {
+            id: 100,
+            senderId: 11,
+            body: 'Mon message',
+            sentAt: '2026-06-18T10:30:00',
+            participantStatus: []
+          },
+          {
+            id: 101,
+            senderId: 12,
+            body: 'Sa réponse',
+            sentAt: '2026-06-18T10:31:00',
+            participantStatus: []
+          }
+        ]
+      },
+      page: { size: 20, totalElements: 2, totalPages: 1, number: 0 },
+      _links: {}
+    }));
 
     await TestBed.configureTestingModule({
       imports: [ConversationsPage],
       providers: [
         {
           provide: ConversationService,
-          useValue: { createConversation, getConversations }
+          useValue: { createConversation, getConversations, getMessages }
         },
         {
           provide: AuthService,
@@ -93,6 +118,49 @@ describe('ConversationsPage', () => {
     expect(component.conversations[0].id).toBe(4004);
     expect(component.conversations[0].title).toBe('siona@example.com');
     expect(component.activeConversationId).toBe(4004);
+  });
+
+  it('should load and map messages for the active conversation', () => {
+    expect(getMessages).toHaveBeenCalledWith(4004, 0, 20);
+    expect(component.messages).toEqual([
+      {
+        id: 100,
+        author: 'Moi',
+        avatar: 'M',
+        text: 'Mon message',
+        time: '10:30',
+        isMine: true
+      },
+      {
+        id: 101,
+        author: 'siona@example.com',
+        avatar: 'S',
+        text: 'Sa réponse',
+        time: '10:31',
+        isMine: false
+      }
+    ]);
+  });
+
+  it('should display an empty state when the API returns no messages', () => {
+    getMessages.mockReturnValue(of({
+      page: { size: 20, totalElements: 0, totalPages: 0, number: 0 },
+      _links: {}
+    }));
+
+    component.loadMessages(4004);
+
+    expect(component.messages).toEqual([]);
+    expect(component.messagesError()).toBe('');
+  });
+
+  it('should expose a message when loading messages fails', () => {
+    getMessages.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+
+    component.loadMessages(4004);
+
+    expect(component.messages).toEqual([]);
+    expect(component.messagesError()).toContain('n’existe plus');
   });
 
   it('should create and select a private conversation returned by the API', () => {

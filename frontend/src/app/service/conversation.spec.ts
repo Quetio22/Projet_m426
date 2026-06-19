@@ -92,4 +92,40 @@ describe('ConversationService', () => {
       }
     });
   });
+
+  it('gets the paginated messages of a conversation', () => {
+    service.getMessages(100, 1, 10).subscribe((response) => {
+      expect(response.page.number).toBe(1);
+      expect(response._embedded?.messages[0].body).toBe('Bonjour');
+    });
+
+    const request = httpTesting.expectOne(
+      (candidate) =>
+        candidate.url === '/api/v1/conversation/100/messages' &&
+        candidate.params.get('page') === '1' &&
+        candidate.params.get('size') === '10'
+    );
+    expect(request.request.method).toBe('GET');
+    expect(request.request.headers.get('Accept')).toBe('application/hal+json');
+    request.flush({
+      _embedded: {
+        messages: [
+          {
+            id: 101,
+            senderId: 12,
+            body: 'Bonjour',
+            sentAt: '2026-06-18T10:30:00',
+            participantStatus: []
+          }
+        ]
+      },
+      page: {
+        size: 10,
+        totalElements: 1,
+        totalPages: 1,
+        number: 1
+      },
+      _links: {}
+    });
+  });
 });

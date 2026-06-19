@@ -110,14 +110,23 @@
     </header>
 
     <div class="messages-list">
-      @if (messages.length === 0) {
+      @if (isLoadingMessages()) {
+        <p class="empty-state">Chargement des messages...</p>
+      } @else if (messagesError()) {
+        <div class="message-state" role="alert">
+          <p>{{ messagesError() }}</p>
+          <button type="button" (click)="loadMessages(conversation.id)">
+            Réessayer
+          </button>
+        </div>
+      } @else if (messages.length === 0) {
         <p class="empty-state">Aucun message dans cette conversation.</p>
       }
 
-      @for (message of messages; track message.time + message.text) {
+      @for (message of messages; track message.id) {
         <div class="message-row" [class.message-row--mine]="message.isMine">
           @if (!message.isMine) {
-            <div class="avatar">{{ message.author }}</div>
+            <div class="avatar" [attr.title]="message.author">{{ message.avatar }}</div>
           }
 
           <article class="message" [class.message--mine]="message.isMine">
@@ -126,7 +135,7 @@
           </article>
 
           @if (message.isMine) {
-            <div class="avatar avatar--mine">{{ message.author }}</div>
+            <div class="avatar avatar--mine" [attr.title]="message.author">{{ message.avatar }}</div>
           }
         </div>
       }
