@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { NgForm } from '@angular/forms';
-import { of, throwError } from 'rxjs';
+import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { ConversationsPage } from './conversations-page';
@@ -14,11 +14,15 @@ describe('ConversationsPage', () => {
   const createConversation = vi.fn();
   const getConversations = vi.fn();
   const getMessages = vi.fn();
+  const sendMessage = vi.fn();
+  const markMessageAsRead = vi.fn();
 
   beforeEach(async () => {
     createConversation.mockReset();
     getConversations.mockReset();
     getMessages.mockReset();
+    sendMessage.mockReset();
+    markMessageAsRead.mockReset();
     getConversations.mockReturnValue(of({
       _embedded: {
         conversations: [
@@ -95,13 +99,27 @@ describe('ConversationsPage', () => {
       page: { size: 20, totalElements: 2, totalPages: 1, number: 0 },
       _links: {}
     }));
+    sendMessage.mockReturnValue(of({
+      id: 120,
+      senderId: 11,
+      body: 'On avance bien.',
+      sentAt: '2026-06-22T10:30:00',
+      participantStatus: []
+    }));
+    markMessageAsRead.mockReturnValue(EMPTY);
 
     await TestBed.configureTestingModule({
       imports: [ConversationsPage],
       providers: [
         {
           provide: ConversationService,
-          useValue: { createConversation, getConversations, getMessages }
+          useValue: {
+            createConversation,
+            getConversations,
+            getMessages,
+            sendMessage,
+            markMessageAsRead
+          }
         },
         {
           provide: AuthService,
@@ -131,6 +149,7 @@ describe('ConversationsPage', () => {
     expect(component.messages).toEqual([
       {
         id: 100,
+        senderId: 11,
         author: 'Moi',
         avatar: 'M',
         text: 'Mon message',
@@ -144,6 +163,7 @@ describe('ConversationsPage', () => {
       },
       {
         id: 101,
+        senderId: 12,
         author: 'siona@example.com',
         avatar: 'S',
         text: 'Sa réponse',
@@ -155,6 +175,38 @@ describe('ConversationsPage', () => {
         ],
         readStatus: ''
       }
+    ]);
+  });
+
+  it('should display messages from oldest to newest', () => {
+    getMessages.mockReturnValue(of({
+      _embedded: {
+        messages: [
+          {
+            id: 202,
+            senderId: 12,
+            body: 'Message récent',
+            sentAt: '2026-06-22T06:18:00',
+            participantStatus: []
+          },
+          {
+            id: 101,
+            senderId: 12,
+            body: 'Message ancien',
+            sentAt: '2026-06-18T06:47:00',
+            participantStatus: []
+          }
+        ]
+      },
+      page: { size: 20, totalElements: 2, totalPages: 1, number: 0 },
+      _links: {}
+    }));
+
+    component.loadMessages(4004);
+
+    expect(component.messages.map((message) => message.text)).toEqual([
+      'Message ancien',
+      'Message récent'
     ]);
   });
 
@@ -182,6 +234,11 @@ describe('ConversationsPage', () => {
     component.loadMessages(4004);
 
     expect(component.messages[0].readStatus).toBe('Lu par 2');
+  });
+
+  it('should mark received unread messages as read', () => {
+    expect(markMessageAsRead).toHaveBeenCalledWith(4004, 101);
+    expect(markMessageAsRead).not.toHaveBeenCalledWith(4004, 100);
   });
 
   it('should preload messages for conversation previews', () => {
@@ -337,10 +394,26 @@ describe('ConversationsPage', () => {
 
   it('should send a message in the active conversation', () => {
     component.newMessage = 'On avance bien.';
-    component.sendMessage();
+    getMessages.mockClear();
 
-    expect(component.messages.at(-1)?.text).toBe('On avance bien.');
+    component.sendMessage(
+      new SubmitEvent('submit', { cancelable: true })
+    );
+
+    expect(sendMessage).toHaveBeenCalledWith(4004, 'On avance bien.');
+    expect(getMessages).toHaveBeenCalledWith(4004, 0, 20);
     expect(component.newMessage).toBe('');
+  });
+
+  it('should reject an empty message', () => {
+    component.newMessage = '   ';
+
+    component.sendMessage(
+      new SubmitEvent('submit', { cancelable: true })
+    );
+
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(component.sendMessageError()).toContain('ne peut pas être vide');
   });
 
   it('should add a participant to the active conversation', () => {

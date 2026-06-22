@@ -109,7 +109,7 @@
       <h2>{{ conversation.title }}</h2>
     </header>
 
-    <div class="messages-list">
+    <div #messagesList class="messages-list">
       @if (isLoadingMessages()) {
         <p class="empty-state">Chargement des messages...</p>
       } @else if (messagesError()) {
@@ -146,9 +146,21 @@
       }
     </div>
 
-    <form class="message-form" (submit)="sendMessage()">
-      <input type="text" name="message" [(ngModel)]="newMessage" placeholder="Votre message..." autocomplete="off">
-      <button type="submit">Envoyer</button>
+    <form class="message-form" (submit)="sendMessage($event)">
+      <input
+        type="text"
+        name="message"
+        [(ngModel)]="newMessage"
+        placeholder="Votre message..."
+        autocomplete="off"
+        [disabled]="isSendingMessage()"
+      >
+      <button type="submit" [disabled]="isSendingMessage()">
+        {{ isSendingMessage() ? 'Envoi...' : 'Envoyer' }}
+      </button>
+      @if (sendMessageError()) {
+        <p class="message-form-error" role="alert">{{ sendMessageError() }}</p>
+      }
     </form>
   </main>
 

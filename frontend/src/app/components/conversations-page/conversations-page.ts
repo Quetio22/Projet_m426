@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, signal, ViewChild } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { finalize } from 'rxjs';
 import {
@@ -13,6 +13,7 @@ import { AuthService } from '../../service/auth';
 
 type Message = {
   id: number;
+  senderId: number;
   author: string;
   avatar: string;
   text: string;
@@ -45,6 +46,8 @@ type Conversation = {
   styleUrl: './conversations-page.scss',
 })
 export class ConversationsPage implements OnInit {
+  @ViewChild('messagesList') private messagesList?: ElementRef<HTMLElement>;
+
   newMessage = '';
   newParticipantName = '';
   conversationType: 'private' | 'group' = 'private';
@@ -61,6 +64,8 @@ export class ConversationsPage implements OnInit {
   readonly conversationsError = signal('');
   readonly isLoadingMessages = signal(false);
   readonly messagesError = signal('');
+  readonly isSendingMessage = signal(false);
+  readonly sendMessageError = signal('');
 
   constructor(
     private conversationService: ConversationService,
@@ -118,6 +123,7 @@ export class ConversationsPage implements OnInit {
   selectConversation(conversationId: number): void {
     this.activeConversationId = conversationId;
     this.newMessage = '';
+    this.sendMessageError.set('');
     this.isCreatingConversation = false;
     this.isAddingParticipant = false;
     this.loadMessages(conversationId);
@@ -144,9 +150,14 @@ export class ConversationsPage implements OnInit {
           return;
         }
 
-        conversation.messages = (response._embedded?.messages ?? []).map(
+        const responseMessages = this.sortMessages(
+          response._embedded?.messages ?? []
+        );
+        conversation.messages = responseMessages.map(
           (message) => this.toMessage(message, conversation)
         );
+        this.markUnreadMessagesAsRead(conversation, responseMessages);
+        this.scrollMessagesToBottom();
       },
       error: (error: HttpErrorResponse) => {
         if (this.activeConversationId !== conversationId) {
@@ -162,7 +173,9 @@ export class ConversationsPage implements OnInit {
   private loadMessagePreview(conversation: Conversation): void {
     this.conversationService.getMessages(conversation.id, 0, 20).subscribe({
       next: (response) => {
-        conversation.messages = (response._embedded?.messages ?? []).map(
+        conversation.messages = this.sortMessages(
+          response._embedded?.messages ?? []
+        ).map(
           (message) => this.toMessage(message, conversation)
         );
       },
@@ -280,25 +293,33 @@ export class ConversationsPage implements OnInit {
     this.resetConversationForm();
   }
 
-  sendMessage(): void {
+  sendMessage(event: SubmitEvent): void {
+    event.preventDefault();
     const text = this.newMessage.trim();
     const activeConversation = this.activeConversation;
 
-    if (!text || !activeConversation) {
+    this.sendMessageError.set('');
+
+    if (!activeConversation) {
+      return;
+    }
+    if (!text) {
+      this.sendMessageError.set('Le message ne peut pas être vide.');
       return;
     }
 
-    activeConversation.messages.push({
-      id: Date.now(),
-      author: 'Moi',
-      avatar: 'M',
-      text,
-      time: this.formatTime(new Date()),
-      isMine: true,
-      participantStatus: [],
-      readStatus: 'Envoyé',
+    this.isSendingMessage.set(true);
+    this.conversationService.sendMessage(activeConversation.id, text).pipe(
+      finalize(() => this.isSendingMessage.set(false))
+    ).subscribe({
+      next: () => {
+        this.newMessage = '';
+        this.loadMessages(activeConversation.id);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.sendMessageError.set(this.getSendMessageError(error));
+      }
     });
-    this.newMessage = '';
   }
 
   showAddParticipantForm(): void {
@@ -432,6 +453,7 @@ export class ConversationsPage implements OnInit {
 
     return {
       id: message.id,
+      senderId: message.senderId,
       author: isMine ? 'Moi' : sender?.name ?? `Utilisateur ${message.senderId}`,
       avatar: isMine
         ? 'M'
@@ -444,6 +466,85 @@ export class ConversationsPage implements OnInit {
         ? this.getReadStatus(participantStatus, message.senderId)
         : ''
     };
+  }
+
+  private markUnreadMessagesAsRead(
+    conversation: Conversation,
+    messages: MessageResponseDto[]
+  ): void {
+    const currentUserId = this.getCurrentUserId(conversation);
+    if (currentUserId === undefined) {
+      return;
+    }
+
+    messages
+      .filter((message) => {
+        if (message.senderId === currentUserId) {
+          return false;
+        }
+
+        const currentStatus = message.participantStatus?.find(
+          (status) => status.userId === currentUserId
+        );
+        return currentStatus !== undefined &&
+          currentStatus.readAt === null &&
+          !currentStatus.deleted;
+      })
+      .forEach((message) => {
+        this.conversationService
+          .markMessageAsRead(conversation.id, message.id)
+          .subscribe({
+            next: (updatedMessage) => {
+              const messageIndex = conversation.messages.findIndex(
+                (item) => item.id === updatedMessage.id
+              );
+              if (messageIndex !== -1) {
+                conversation.messages[messageIndex] =
+                  this.toMessage(updatedMessage, conversation);
+              }
+            },
+            error: () => {
+              // A read receipt failure must not hide the loaded messages.
+            }
+          });
+      });
+  }
+
+  private getCurrentUserId(conversation: Conversation): number | undefined {
+    const currentUsername = this.authService.getUsername()?.toLowerCase();
+
+    return conversation.participants.find(
+      (participant) => participant.name.toLowerCase() === currentUsername
+    )?.userId;
+  }
+
+  private sortMessages(messages: MessageResponseDto[]): MessageResponseDto[] {
+    return [...messages].sort((first, second) => {
+      const dateDifference =
+        new Date(first.sentAt).getTime() - new Date(second.sentAt).getTime();
+
+      return dateDifference || first.id - second.id;
+    });
+  }
+
+  private scrollMessagesToBottom(): void {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const element = this.messagesList?.nativeElement;
+        if (!element) {
+          return;
+        }
+
+        if (typeof element.scrollTo === 'function') {
+          element.scrollTo({
+            top: element.scrollHeight,
+            behavior: 'smooth'
+          });
+        } else {
+          element.scrollTop = element.scrollHeight;
+        }
+      });
+    });
   }
 
   private getReadStatus(
@@ -495,6 +596,22 @@ export class ConversationsPage implements OnInit {
       return 'Trop de requêtes. Réessaie dans un instant.';
     }
     return 'Impossible de charger les messages pour le moment.';
+  }
+
+  private getSendMessageError(error: HttpErrorResponse): string {
+    if (error.status === 400) {
+      return 'Le message saisi n’est pas valide.';
+    }
+    if (error.status === 401 || error.status === 403) {
+      return 'Tu n’as pas le droit d’envoyer un message dans cette conversation.';
+    }
+    if (error.status === 404) {
+      return 'Cette conversation n’existe plus.';
+    }
+    if (error.status === 429) {
+      return 'Trop de messages envoyés. Réessaie dans un instant.';
+    }
+    return 'Impossible d’envoyer le message pour le moment.';
   }
 
   private resetConversationForm(): void {

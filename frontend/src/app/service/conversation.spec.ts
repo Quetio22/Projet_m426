@@ -128,4 +128,46 @@ describe('ConversationService', () => {
       _links: {}
     });
   });
+
+  it('sends a message in a conversation', () => {
+    service.sendMessage(100, 'Bonjour').subscribe();
+
+    const request = httpTesting.expectOne(
+      '/api/v1/conversation/100/messages'
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ message: 'Bonjour' });
+    expect(request.request.headers.get('Accept')).toBe('application/hal+json');
+    request.flush({
+      id: 120,
+      senderId: 11,
+      body: 'Bonjour',
+      sentAt: '2026-06-22T10:30:00',
+      participantStatus: []
+    });
+  });
+
+  it('marks a message as read', () => {
+    service.markMessageAsRead(100, 101).subscribe();
+
+    const request = httpTesting.expectOne(
+      '/api/v1/conversation/100/messages/101'
+    );
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual({ read: true });
+    expect(request.request.headers.get('Accept')).toBe('application/hal+json');
+    request.flush({
+      id: 101,
+      senderId: 12,
+      body: 'Bonjour',
+      sentAt: '2026-06-22T10:30:00',
+      participantStatus: [
+        {
+          userId: 11,
+          readAt: '2026-06-22T10:31:00',
+          deleted: false
+        }
+      ]
+    });
+  });
 });

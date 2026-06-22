@@ -103,4 +103,24 @@ export class ConversationService {
       }
     );
   }
+
+  sendMessage(conversationId: number, message: string) {
+    return this.http.post<MessageResponseDto>(
+      `${this.apiUrl}/conversation/${conversationId}/messages`,
+      { message },
+      {
+        headers: { Accept: 'application/hal+json' }
+      }
+    );
+  }
+
+  markMessageAsRead(conversationId: number, messageId: number) {
+    return this.http.patch<MessageResponseDto>(
+      `${this.apiUrl}/conversation/${conversationId}/messages/${messageId}`,
+      { read: true },
+      {
+        headers: { Accept: 'application/hal+json' }
+      }
+    );
+  }
 }

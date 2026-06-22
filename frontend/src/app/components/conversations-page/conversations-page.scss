@@ -253,6 +253,19 @@ small {
   color: #ffffff;
 }
 
+.message-form input:disabled,
+.message-form button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.message-form-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #ff8f8f;
+  font-size: 13px;
+}
+
 .inline-form {
   display: grid;
   gap: 10px;
