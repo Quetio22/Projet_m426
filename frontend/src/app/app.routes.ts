@@ -4,6 +4,7 @@ import { Login } from './components/login/login';
 import { ConversationsPage } from './components/conversations-page/conversations-page';
 import { Register } from './components/register/register';
 import { Profile } from './components/profile/profile';
+import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -17,6 +18,7 @@ export const routes: Routes = [
   {
     path: 'conversations',
     component: ConversationsPage,
+    canActivate: [authGuard],
   },
   {
     path: 'register',
@@ -25,6 +27,7 @@ export const routes: Routes = [
   {
     path: 'profile',
     component: Profile,
+    canActivate: [authGuard],
   },
   {
     path: '**',
