@@ -155,7 +155,7 @@
         autocomplete="off"
         [disabled]="isSendingMessage()"
       >
-      <button type="submit" [disabled]="isSendingMessage()">
+      <button type="submit" [disabled]="isSendingMessage() || !newMessage.trim()">
         {{ isSendingMessage() ? 'Envoi...' : 'Envoyer' }}
       </button>
       @if (sendMessageError()) {

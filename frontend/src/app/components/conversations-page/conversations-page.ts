@@ -307,6 +307,9 @@ export class ConversationsPage implements OnInit {
       this.sendMessageError.set('Le message ne peut pas être vide.');
       return;
     }
+    if (this.isSendingMessage()) {
+      return;
+    }
 
     this.isSendingMessage.set(true);
     this.conversationService.sendMessage(activeConversation.id, text).pipe(
