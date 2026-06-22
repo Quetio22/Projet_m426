@@ -2,21 +2,10 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  width: calc(100% - 32px);
-  min-height: calc(100vh - var(--nav-height) - 24px);
-  margin: 12px auto;
+  width: 100%;
+  min-height: calc(100vh - var(--nav-height));
   padding: 48px 24px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 12px;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(123, 85, 238, 0.08),
-      transparent 38%
-    ),
-    #1b0b31;
   color: #ffffff;
-  box-shadow: 0 10px 30px rgba(8, 0, 20, 0.2);
 }
 
 .profile-card {
