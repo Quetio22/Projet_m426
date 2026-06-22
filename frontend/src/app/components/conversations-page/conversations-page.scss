@@ -255,8 +255,15 @@ small {
 
 .message-form input:disabled,
 .message-form button:disabled {
-  cursor: wait;
   opacity: 0.7;
+}
+
+.message-form input:disabled {
+  cursor: wait;
+}
+
+.message-form button:disabled {
+  cursor: not-allowed;
 }
 
 .message-form-error {

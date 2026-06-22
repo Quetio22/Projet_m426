@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { NgForm } from '@angular/forms';
-import { EMPTY, of, throwError } from 'rxjs';
+import { EMPTY, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { ConversationsPage } from './conversations-page';
@@ -414,6 +414,35 @@ describe('ConversationsPage', () => {
 
     expect(sendMessage).not.toHaveBeenCalled();
     expect(component.sendMessageError()).toContain('ne peut pas être vide');
+  });
+
+  it('should keep the message when sending fails', () => {
+    sendMessage.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 403 }))
+    );
+    component.newMessage = 'Message refusé';
+
+    component.sendMessage(
+      new SubmitEvent('submit', { cancelable: true })
+    );
+
+    expect(component.newMessage).toBe('Message refusé');
+    expect(component.sendMessageError()).toContain('droit');
+  });
+
+  it('should not send another message while one is already being sent', () => {
+    const pendingRequest = new Subject();
+    sendMessage.mockReturnValue(pendingRequest);
+    component.newMessage = 'Premier message';
+
+    component.sendMessage(
+      new SubmitEvent('submit', { cancelable: true })
+    );
+    component.sendMessage(
+      new SubmitEvent('submit', { cancelable: true })
+    );
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 
   it('should add a participant to the active conversation', () => {
