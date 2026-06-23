@@ -7,7 +7,8 @@ import {
   ConversationService,
   CreateConversationRequest,
   MessageParticipantStatusDto,
-  MessageResponseDto
+  MessageResponseDto,
+  UpdateConversationParticipantRequest
 } from '../../service/conversation';
 import { AuthService } from '../../service/auth';
 
@@ -27,6 +28,7 @@ type Participant = {
   userId?: number;
   initials: string;
   name: string;
+  role: 'OWNER' | 'MEMBER';
   status: string;
 };
 
@@ -66,6 +68,7 @@ export class ConversationsPage implements OnInit {
   readonly messagesError = signal('');
   readonly isSendingMessage = signal(false);
   readonly sendMessageError = signal('');
+  readonly updatingParticipantId = signal<number | null>(null);
 
   constructor(
     private conversationService: ConversationService,
@@ -357,11 +360,44 @@ export class ConversationsPage implements OnInit {
     activeConversation.participants.push({
       initials: this.createInitials(name),
       name,
+      role: 'MEMBER',
       status: 'Invité',
     });
     this.newParticipantName = '';
     this.isAddingParticipant = false;
     this.participantError.set('');
+  }
+
+  isCurrentParticipant(participant: Participant): boolean {
+    return participant.name.toLowerCase() === this.authService.getUsername()?.toLowerCase();
+  }
+
+  canManageParticipant(participant: Participant): boolean {
+    const currentParticipant = this.participants.find(
+      (item) => this.isCurrentParticipant(item)
+    );
+
+    return currentParticipant?.role === 'OWNER' && !this.isCurrentParticipant(participant);
+  }
+
+  toggleParticipantRole(participant: Participant): void {
+    this.patchParticipant(participant, {
+      role: participant.role === 'OWNER' ? 'MEMBER' : 'OWNER'
+    });
+  }
+
+  toggleParticipantStatus(participant: Participant): void {
+    this.patchParticipant(participant, {
+      status: participant.status === 'BLOCKED' ? 'ACTIVE' : 'BLOCKED'
+    });
+  }
+
+  leaveConversation(participant: Participant): void {
+    if (!this.isCurrentParticipant(participant)) {
+      return;
+    }
+
+    this.patchParticipant(participant, { status: 'INACTIVE' });
   }
 
   cancelAddParticipant(): void {
@@ -440,6 +476,7 @@ export class ConversationsPage implements OnInit {
         userId: participant.userId,
         initials: this.createInitials(participant.username),
         name: participant.username,
+        role: participant.role,
         status: participant.status
       })),
       messages: []
@@ -469,6 +506,45 @@ export class ConversationsPage implements OnInit {
         ? this.getReadStatus(participantStatus, message.senderId)
         : ''
     };
+  }
+
+  private patchParticipant(
+    participant: Participant,
+    update: UpdateConversationParticipantRequest
+  ): void {
+    const activeConversation = this.activeConversation;
+    if (!activeConversation || participant.userId === undefined || this.updatingParticipantId() !== null) {
+      return;
+    }
+
+    this.participantError.set('');
+    this.updatingParticipantId.set(participant.userId);
+
+    this.conversationService.updateParticipant(
+      activeConversation.id,
+      participant.userId,
+      update
+    ).pipe(
+      finalize(() => this.updatingParticipantId.set(null))
+    ).subscribe({
+      next: (response) => {
+        participant.name = response.username;
+        participant.initials = this.createInitials(response.username);
+        participant.role = response.role;
+        participant.status = response.status;
+      },
+      error: (error: HttpErrorResponse) => {
+        if (error.status === 403) {
+          this.participantError.set('Tu n’as pas le droit de modifier ce participant.');
+          return;
+        }
+        if (error.status === 400) {
+          this.participantError.set('Cette modification de rôle ou de statut est invalide.');
+          return;
+        }
+        this.participantError.set('Impossible de modifier le participant pour le moment.');
+      }
+    });
   }
 
   private markUnreadMessagesAsRead(

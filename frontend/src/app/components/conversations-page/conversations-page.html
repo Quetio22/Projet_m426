@@ -171,11 +171,43 @@
       @for (participant of participants; track $index) {
         <div class="participant">
           <div class="avatar">{{ participant.initials }}</div>
-          <span>
+          <span class="participant-info">
             <strong>{{ participant.name }}</strong>
-            <small>{{ participant.status }}</small>
+            <small>{{ participant.role }} · {{ participant.status }}</small>
+            @if (canManageParticipant(participant)) {
+              <span class="participant-actions">
+                <button
+                  type="button"
+                  (click)="toggleParticipantRole(participant)"
+                  [disabled]="updatingParticipantId() !== null"
+                >
+                  {{ participant.role === 'OWNER' ? 'Rendre membre' : 'Rendre propriétaire' }}
+                </button>
+                <button
+                  type="button"
+                  (click)="toggleParticipantStatus(participant)"
+                  [disabled]="updatingParticipantId() !== null"
+                >
+                  {{ participant.status === 'BLOCKED' ? 'Réactiver' : 'Bloquer' }}
+                </button>
+              </span>
+            } @else if (isCurrentParticipant(participant) && participant.status === 'ACTIVE') {
+              <span class="participant-actions">
+                <button
+                  type="button"
+                  (click)="leaveConversation(participant)"
+                  [disabled]="updatingParticipantId() !== null"
+                >
+                  Quitter
+                </button>
+              </span>
+            }
           </span>
         </div>
+      }
+
+      @if (participantError() && !isAddingParticipant) {
+        <p class="form-error" role="alert">{{ participantError() }}</p>
       }
 
       @if (isAddingParticipant) {

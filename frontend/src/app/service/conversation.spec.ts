@@ -170,4 +170,21 @@ describe('ConversationService', () => {
       ]
     });
   });
+
+  it('updates the role or status of a participant', () => {
+    service.updateParticipant(100, 12, { status: 'BLOCKED' }).subscribe();
+
+    const request = httpTesting.expectOne(
+      '/api/v1/conversation/100/participants/12'
+    );
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual({ status: 'BLOCKED' });
+    expect(request.request.headers.get('Accept')).toBe('application/hal+json');
+    request.flush({
+      userId: 12,
+      username: 'siona@example.com',
+      role: 'MEMBER',
+      status: 'BLOCKED'
+    });
+  });
 });

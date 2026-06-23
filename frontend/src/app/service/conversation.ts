@@ -8,6 +8,11 @@ export type ConversationParticipantDto = {
   status: 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
 };
 
+export type UpdateConversationParticipantRequest = {
+  role?: ConversationParticipantDto['role'];
+  status?: ConversationParticipantDto['status'];
+};
+
 export type ConversationResponseDto = {
   id: number;
   isGroup?: boolean;
@@ -118,6 +123,20 @@ export class ConversationService {
     return this.http.patch<MessageResponseDto>(
       `${this.apiUrl}/conversation/${conversationId}/messages/${messageId}`,
       { read: true },
+      {
+        headers: { Accept: 'application/hal+json' }
+      }
+    );
+  }
+
+  updateParticipant(
+    conversationId: number,
+    participantId: number,
+    update: UpdateConversationParticipantRequest
+  ) {
+    return this.http.patch<ConversationParticipantDto>(
+      `${this.apiUrl}/conversation/${conversationId}/participants/${participantId}`,
+      update,
       {
         headers: { Accept: 'application/hal+json' }
       }

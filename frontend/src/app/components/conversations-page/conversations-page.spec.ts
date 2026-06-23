@@ -16,6 +16,7 @@ describe('ConversationsPage', () => {
   const getMessages = vi.fn();
   const sendMessage = vi.fn();
   const markMessageAsRead = vi.fn();
+  const updateParticipant = vi.fn();
 
   beforeEach(async () => {
     createConversation.mockReset();
@@ -23,6 +24,7 @@ describe('ConversationsPage', () => {
     getMessages.mockReset();
     sendMessage.mockReset();
     markMessageAsRead.mockReset();
+    updateParticipant.mockReset();
     getConversations.mockReturnValue(of({
       _embedded: {
         conversations: [
@@ -107,6 +109,12 @@ describe('ConversationsPage', () => {
       participantStatus: []
     }));
     markMessageAsRead.mockReturnValue(EMPTY);
+    updateParticipant.mockImplementation((_conversationId, participantId, update) => of({
+      userId: participantId,
+      username: 'siona@example.com',
+      role: update.role ?? 'MEMBER',
+      status: update.status ?? 'ACTIVE'
+    }));
 
     await TestBed.configureTestingModule({
       imports: [ConversationsPage],
@@ -118,7 +126,8 @@ describe('ConversationsPage', () => {
             getConversations,
             getMessages,
             sendMessage,
-            markMessageAsRead
+            markMessageAsRead,
+            updateParticipant
           }
         },
         {
@@ -453,6 +462,7 @@ describe('ConversationsPage', () => {
     expect(component.participants.at(-1)).toEqual({
       initials: 'A',
       name: 'alice@example.com',
+      role: 'MEMBER',
       status: 'Invité',
     });
     expect(component.newParticipantName).toBe('');
@@ -463,6 +473,7 @@ describe('ConversationsPage', () => {
     component.activeConversation!.participants.push({
       initials: 'A',
       name: 'alice@example.com',
+      role: 'MEMBER',
       status: 'ACTIVE'
     });
     component.newParticipantName = 'alice@example.com';
@@ -470,5 +481,31 @@ describe('ConversationsPage', () => {
     component.addParticipant();
 
     expect(component.participantError()).toContain('déjà dans la conversation');
+  });
+
+  it('should patch and update a participant status', () => {
+    component.activeConversation!.group = true;
+    component.activeConversation!.participants[0].role = 'OWNER';
+    const participant = component.activeConversation!.participants[1];
+
+    component.toggleParticipantStatus(participant);
+
+    expect(updateParticipant).toHaveBeenCalledWith(4004, 12, {
+      status: 'BLOCKED'
+    });
+    expect(participant.status).toBe('BLOCKED');
+  });
+
+  it('should patch and update a participant role', () => {
+    component.activeConversation!.group = true;
+    component.activeConversation!.participants[0].role = 'OWNER';
+    const participant = component.activeConversation!.participants[1];
+
+    component.toggleParticipantRole(participant);
+
+    expect(updateParticipant).toHaveBeenCalledWith(4004, 12, {
+      role: 'OWNER'
+    });
+    expect(participant.role).toBe('OWNER');
   });
 });
