@@ -1,5 +1,7 @@
 # Projet WebApp de Messagerie
 
+Lancer le projet dans /frontend avec la commande `npm start` pour démarrer le serveur de développement.
+
 ## Description du projet
 
 Dans le cadre des modules **Développement Web M426, M295 et M294**, notre équipe développe une WebApp de messagerie sous forme de **Single Page Application (SPA)**.  
